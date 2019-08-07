@@ -7,7 +7,9 @@ Uses Python 2.7
 libraries to install:
 
 pip install requests
+
 pip install beautifulsoup
+
 pip install selenium
 
 See image files in this directory (example1.png, example2.png) for examples on how this code morphs Facebook's main page.
