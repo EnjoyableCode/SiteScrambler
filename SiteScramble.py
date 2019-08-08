@@ -3,9 +3,13 @@ SiteScrambler class
 Authored by Colin Nicholson
 06/2018
 '''
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 
 from random import randint
+
+import requests
+
+import re
 
 import os
 
@@ -34,7 +38,8 @@ class SiteScramble:
                     el["src"] = url + el["src"]
             except:
                 pass
-        return str(self.soup).decode('utf-8')
+        #return str(self.soup).decode('utf-8')
+        return str(self.soup)
 
     def _get_color(self,html_text):
         '''
@@ -96,21 +101,21 @@ class SiteScramble:
             att_dict['font-sizes'] = font_sizes
         self.att_dict = att_dict
 
-    def get_css(self):
+    def check_valid_css(self,html_string):
         '''
-        Extracts CSS files from HTML
+        Checks to see if string of HTML is a valid CSS code
         '''
 
-        allEls = self.soup.findAll('head')[0].findChildren()
-        css_file_list = []
-        index = 0
+        valid_chars = ['a', 'b', 'c', 'd', 'e', 'f']
+        valid_chars = valid_chars + [str(x) for x in range(10)]
+        is_valid = True
 
-        for p in allEls:
-            if p.get('href') and '.css' in p.get('href'):
-                _change_css(p.get('href'), index, num)
-                css_file_list.append(p.get('href'))
-                index += 1
-        self.css_file_list = css_file_list
+        for h in html_string:
+            if h not in valid_chars:
+                is_valid = False
+
+        return is_valid
+    
 
     def _change_css(self,css_file, index, num):
         '''
@@ -127,13 +132,32 @@ class SiteScramble:
         r = requests.get(css_file)
         css_html = r.text
         all_matches = re.findall(r'#.{6}', css_html, re.MULTILINE)
-        valid_css = list(set(x for x in all_matches if check_valid_css(x.replace('#',''))))
+        valid_css = list(set(x for x in all_matches if self.check_valid_css(x.replace('#',''))))
         
         for val in valid_css:
-            new_color = self.change_color(val, self.noise_level)
+            new_color = self._change_color(val, self.noise_level)
             css_html = css_html.replace(val, new_color)
         with open('output/newcss' + str(num) + str(index) + '.css', 'w') as f:
-            f.write(css_html.encode('utf-8'))
+            #f.write(css_html.encode('utf-8'))
+            f.write(str(css_html))
+
+    def get_css(self):
+        '''
+        Extracts CSS files from HTML
+        '''
+
+        allEls = self.soup.findAll('head')[0].findChildren()
+        css_file_list = []
+        index = 0
+
+        for p in allEls:
+            if p.get('href') and '.css' in p.get('href'):
+                self._change_css(p.get('href'), index, self.filenum)
+                css_file_list.append(p.get('href'))
+                index += 1
+        self.css_file_list = css_file_list
+
+    
 
     def _change_color(self,orig_color, color_range):
         '''
@@ -159,7 +183,7 @@ class SiteScramble:
 
             return '#' + ''.join(str(n) for n in new_color)
         except Exception as e:
-            print 'error changing color', e
+            print('error changing color' + str(e))
             return orig_color
 
     def change_image_hrefs(self):
@@ -210,7 +234,11 @@ class SiteScramble:
                 if 'px' in size:
                     size = size.replace('px','').strip()
                     px = True
-        if size:            
+        if size:
+            try:
+                new_size = int(size)
+            except:        
+                size = randint(1,9)
             new_fs = int(size) * change_level
             if negate == 0:
                 new_fs = new_fs + int(size)
@@ -250,9 +278,10 @@ class SiteScramble:
         if not self.att_dict:
             self._get_atts_to_change()
         self.change_css_files()
-        for c in self.att_dict['colors']:
-            newc = self.change_color(c)
-            self.html = self.html.replace(c,newc)
+        if 'colors' in self.att_dict:
+            for c in self.att_dict['colors']:
+                newc = self._change_color(c,self.noise_level)
+                self.html = self.html.replace(c,newc)
 
     def scramble_image_sizes(self):
         '''
@@ -261,10 +290,11 @@ class SiteScramble:
         if not self.att_dict:
             self._get_atts_to_change()
             
-        for im in self.att_dict['images']:
-            newim = self._change_images(im)
-            self.html = self.html.replace('height="' + im[0],'height="' + str(newim[0]))
-            self.html = self.html.replace('width="' + im[1],'width="' + str(newim[1]))
+        if 'images' in self.att_dict:
+            for im in self.att_dict['images']:
+                newim = self._change_images(im)
+                self.html = self.html.replace('height="' + im[0],'height="' + str(newim[0]))
+                self.html = self.html.replace('width="' + im[1],'width="' + str(newim[1]))
 
 
     def scramble_font_sizes(self):
@@ -274,6 +304,7 @@ class SiteScramble:
         if not self.att_dict:
             self._get_atts_to_change()
             
-        for fs in self.att_dict['font-sizes']:
-            newfs = self._change_font_size(fs)
-            self.html = self.html.replace(fs,newfs)
+        if 'font-sizes' in self.att_dict:
+            for fs in self.att_dict['font-sizes']:
+                newfs = self._change_font_size(fs)
+                self.html = self.html.replace(fs,newfs)
