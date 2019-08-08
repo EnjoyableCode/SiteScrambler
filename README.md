@@ -2,15 +2,12 @@
 Python class to randomly morph a website
 Colin Nicholson
 06/2018
-Uses Python 2.7
+Uses Python 3, tested on Python 3.4.3
 
 libraries to install:
 
-pip install requests
+pip install -r requirements.txt
 
-pip install beautifulsoup
-
-pip install selenium
 
 See image files in this directory (example1.png, example2.png) for examples on how this code morphs Facebook's main page.
 
